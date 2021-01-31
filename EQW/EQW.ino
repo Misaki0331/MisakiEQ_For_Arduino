@@ -542,6 +542,7 @@ void quickEQW(String str) {
 
 
 }
+bool outputCons=0;
 void serialEvent() {
   while (Serial.available()) {
     String getText;
@@ -649,7 +650,7 @@ void serialEvent() {
 
       }
     } else  {
-      if(tempTime<=-30000)printConsole(text);
+      if(outputCons)printConsole(text);
     }
   }
 
@@ -711,7 +712,10 @@ void loop()
     
     //sprintf(logText,"%7ldFPS",temM);
     //printRom(logText,254,473,0xFFFF,1,0x001F);
+    outputCons=0;
     temM=0;
+  }else{
+    outputCons=1;
   }
   if(Time==0)temM=0;
   mylcd.Set_Text_Mode(0);
