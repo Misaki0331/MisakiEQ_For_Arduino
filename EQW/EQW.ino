@@ -1,6 +1,6 @@
 #define version_Major 1
-#define version_Minor 0
-#define version_Maintenance 1
+#define version_Minor 1
+#define version_Maintenance 0
 #include "bin.h"
 #include <LCDWIKI_GUI.h> //Core graphics library
 #include <LCDWIKI_KBV.h> //Hardware-specific library
@@ -9,7 +9,53 @@
 LCDWIKI_KBV mylcd(ILI9486, A3, A2, A1, A0, A4); //model,cs,cd,wr,rd,reset
 //if the IC model is not known and the modules is readable,you can use this constructed function
 //LCDWIKI_KBV mylcd(320,480,A3,A2,A1,A0,A4);//width,height,cs,cd,wr,rd,reset
+void displayBMP(int x, int y, uint32_t address, uint16_t size) {
+  int sizeX = pgm_read_word(address + 0);
+  int sizeY = pgm_read_word(address + 2);
+  int shift = 0;
+  uint8_t graph = 0;
 
+  for (int i = 2; i < size; i++) {
+    uint16_t value = pgm_read_word(address + i * 2);
+    if (value == 0xFD00) {
+      i++;
+      mylcd.Set_Draw_color(pgm_read_word(address + i * 2));
+    } else if (value == 0xFE00) {
+      i++;
+      for (; pgm_read_word(address + i * 2 ) < 0xF000 && i + 2 < size; i += 2) {
+        int pos = pgm_read_word(address + i * 2);
+        int sy = pgm_read_word(address + i * 2 + 2);
+        mylcd.Fill_Rectangle(x + (pos % (sizeX / 8)) * 8, y + (pos / (sizeX / 8)) , x + (pos % (sizeX / 8)) * 8 + 7, y + (pos / (sizeX / 8)) + sy - 1);
+      }
+      i--;
+    } else if (value >= 0xFF00) {
+      graph = value % 256;
+      i++;
+      for (; pgm_read_word(address + i * 2) < 0xF000 && i < size; i++) {
+        int POS = pgm_read_word(address + i * 2);
+        int ta = 0, tc = 0;
+        for (int j = 0; j < 8; j++) {
+          if (graph & (1 << 7 - j))tc++;
+          if ((graph & (1 << 7 - j)) != ta) {
+            ta = graph & (1 << 7 - j);
+            if (!ta) {
+              mylcd.Draw_Fast_HLine(x + (POS % (sizeX / 8)) * 8 + j - tc, y + POS / (sizeX / 8), tc);
+              tc = 0;
+            }
+
+          }
+        }
+        if (tc > 0)mylcd.Draw_Fast_HLine(x + (POS % (sizeX / 8)) * 8 + 8 - tc, y + POS / (sizeX / 8), tc);
+
+      }
+      i--;
+
+    }
+
+
+  }
+
+}
 uint16_t convert_color(int r, int g, int b) {
   uint16_t color;
   color = r / 8;
@@ -36,7 +82,7 @@ struct Pos {
 
 bool con;
 String vst;
-Pos tMapPos={-1,-1};
+Pos tMapPos = { -1, -1};
 uint32_t i = 0;
 char text[70];
 void displayEnglish(int x, int y, uint8_t chara, uint8_t siz) {
@@ -479,7 +525,7 @@ void quickEQW(String str) {
   sscanf(tmp, "%x", &a);
   sprintf(tmp, "%c", txt[5]);
   sscanf(tmp, "%x", &b);
-  sprintf(tmp, "%c%c", txt[6],txt[7]);
+  sprintf(tmp, "%c%c", txt[6], txt[7]);
   sscanf(tmp, "%x", &c);
   sprintf(tmp, "%c%c%c%c%c", text[8], text[9], text[10], text[11], text[12]);
   sscanf(tmp, "%lx", &p);
@@ -527,14 +573,14 @@ void quickEQW(String str) {
   }
   sprintf(tmp, "%c%c%c", text[23], text[24], text[25]);
   sscanf(tmp, "%x", &y);
- // Serial.println(y,DEC);
+  // Serial.println(y,DEC);
   sprintf(tmp, "%c%c%c", text[26], text[27], text[28]);
   //Serial.println(" ");
   sscanf(tmp, "%x", &z);
   //Serial.println(z,DEC);
   drawCenter(y, z);
   sprintf(tmp, "%c%c%c%c%c%c%c%c", text[31], text[32], text[33], text[34], text[35], text[36], text[37], text[38]);
-  sscanf(tmp,"%lx",&Time);
+  sscanf(tmp, "%lx", &Time);
 
 
 
@@ -542,7 +588,7 @@ void quickEQW(String str) {
 
 
 }
-bool outputCons=0;
+bool outputCons = 0;
 void serialEvent() {
   while (Serial.available()) {
     String getText;
@@ -605,8 +651,8 @@ void serialEvent() {
           break;
         case 'c':
         case 'C':
-        Time=0;
-        tempTime=0;
+          Time = -3000000;
+          tempTime = 0;
           isDisplayedUI = -1;
           clearConsole();
           break;
@@ -623,10 +669,20 @@ void serialEvent() {
         case 'T':
         case 't':
 
+          
+          /*uint32_t test=Misaki_bmp;
+            for(int y=0;y<2044;y+=8){
+            char txt[64];
+            sprintf(txt, "");
+            for(int x=0;x<8;x++){
 
+              sprintf(txt,"%s %04X",txt,pgm_read_word(test+(y+x)*2));
+            }
+            printConsole(txt);
+            }*/
           //clearConsole();
 
-          displayUI(text[3] == '1');
+          //displayUI(text[3] == '1');
 
           break;
         case 'Q':
@@ -650,15 +706,15 @@ void serialEvent() {
 
       }
     } else  {
-      if(outputCons)printConsole(text);
+      if (Time < -30000)printConsole(text);
     }
   }
 
 }
 void setup()
 {
-  
-  Time=-10000000;
+
+  Time = -10000000;
   Serial.begin(serialSpeed);
   mylcd.Init_LCD();
   //Serial.println(mylcd.Read_ID(), HEX);
@@ -668,56 +724,77 @@ void setup()
   mylcd.Set_Text_Size(1);
   mylcd.Set_Draw_color(BLACK);
   char text[70];
-  sprintf(text, "Misaki Console Ver.%d.%d.%d", version_Major, version_Minor, version_Maintenance);
+  sprintf(text, "MisakiEQ For Arduino Ver.%d.%d.%d",version_Major, version_Minor, version_Maintenance);
+  
   printConsole(text);
-  sprintf(text, "Last Build Date: |*a%s %s", __DATE__, __TIME__);
+  printConsole(" ");
+  sprintf(text, "Last Build Time:");
   printConsole(text);
-  sprintf(text, "Misaki's |*bTwitter|*f: @|*b0x7FF");
+  sprintf(text, "|*a%s %s", __DATE__, __TIME__);
   printConsole(text);
-  sprintf(text, "Misaki's |*cYouTube|*f: |*chttp://bit.ly/Kanon_YouTube");
+  printConsole(" ");
+  sprintf(text, "Misaki's |*bTwitter|*f:");
   printConsole(text);
+  sprintf(text, "twitter.com/|*b0x7FF");
+  printConsole(text);
+  printConsole(" ");
+  sprintf(text, "Misaki's |*cYouTube|*f:");
+  printConsole(text);
+  sprintf(text, "bit.ly/|*cKanon_YouTube");
+  printConsole(text);
+  printConsole(" ");
+  sprintf(text, "[|*bMisaki|*fEQ for Arduino]'s |*7GitHub|*f:");
+  printConsole(text);
+  sprintf(text, "github.com/|*bMisaki0331");
+  printConsole(text);
+  sprintf(text, "               /|*bMisakiEQ_For_Arduino");
+  
+  printConsole(text);
+  printConsole(" ");
   //char test[5];
   //int dummy;
   //int publishYear;
   //sscanf(__DATE__,"%d %s %d",&dummy,test,&publishYear);
   sprintf(text, "(C)2021 Misaki All rights rserved");
   printConsole(text);
-  printConsole("  ");
+  printConsole(" ");
+  
+  displayBMP(207, 0, Misaki_bmp, 2095);
   pinMode(47, OUTPUT);
 }
 uint32_t TimeLoop = 0;
-uint32_t temM=0;
+uint32_t temM = 0;
 void loop()
 {
   temM++;
-  
+
   uint32_t tempT = millis();
-  
+
   if (Time >= -100000)Time -= tempT - TimeLoop;
-  if (Time < -30000&&Time>-100000){
+  if (Time < -30000 && Time > -100000) {
     clearConsole();
-    isDisplayedUI=-1;
-    i=0;
+    isDisplayedUI = -1;
+    i = 0;
     Time = -300000;
   }
   TimeLoop = tempT;
   //uint32_t timer=millis();
   uint32_t c = Time / 1000 + 1;
   if (Time <= 0)c = 0;
-  if (tempTime != c&&Time>-1000) {
+  if (tempTime != c && Time > -1000) {
     tempTime = c;
     if (c < 1000)sprintf(logText, "%3d", c);
     if (c >= 1000)sprintf(logText, "???");
     printRom(logText, 216, 435, 0xF800, 5, 0x0000);          //到達時刻まで
-    
+
     //sprintf(logText,"%7ldFPS",temM);
     //printRom(logText,254,473,0xFFFF,1,0x001F);
-    outputCons=0;
-    temM=0;
-  }else{
-    outputCons=1;
+    outputCons = 0;
+    temM = 0;
+  } else {
+    outputCons = 1;
   }
-  if(Time==0)temM=0;
+  if (Time == 0)temM = 0;
   mylcd.Set_Text_Mode(0);
   //display 1 times string
   //mylcd.Fill_Screen(0x0000);
@@ -725,5 +802,5 @@ void loop()
   //sprintf(text,"%ld:%02ld.%03ld",timer/60000,timer/1000%60,timer%1000);
 
 
-    //delay(100);
-  }
+  //delay(100);
+}
