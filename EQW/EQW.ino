@@ -6,7 +6,7 @@
 #include <LCDWIKI_KBV.h> //Hardware-specific library
 #include <SD.h>
 #include <SPI.h>
-bool isSDReady=0;
+bool isSDReady = 0;
 //if the IC model is known or the modules is unreadable,you can use this constructed function
 LCDWIKI_KBV mylcd(ILI9486, A3, A2, A1, A0, A4); //model,cs,cd,wr,rd,reset
 //if the IC model is not known and the modules is readable,you can use this constructed function
@@ -385,8 +385,8 @@ uint32_t serialSpeed = 19200;
 uint32_t serialTimeout = 10;
 void printConsole(String ctext) {
   char *text;
-  text=new char[ctext.length()+1];
-  ctext.toCharArray(text, ctext.length()+1);
+  text = new char[ctext.length() + 1];
+  ctext.toCharArray(text, ctext.length() + 1);
   i += 8;
   if (i > 480) {
     /*for (int p = 7; p >= 0; p--) {
@@ -455,8 +455,8 @@ struct timeStamp {
 };
 int isDisplayedUI = 0;
 void displayUI(bool isEQW) {
-  if (isDisplayedUI != isEQW + 1) {
-    isDisplayedUI = isEQW + 1;
+  if (isDisplayedUI != isEQW +1) {
+    isDisplayedUI = isEQW +1;
     drawMap();
     if (isEQW) {
       mylcd.Set_Draw_color(0xF800);
@@ -497,6 +497,7 @@ void displayUI(bool isEQW) {
 long Time = 0;
 long tempTime = 0;
 void quickEQW(String str) {
+  //printConsole(str);
   displayUI(1);
   /*  FFFFF 日付 2年1月2日         3-7
       FFFFF 時刻                  8-12
@@ -592,29 +593,29 @@ void quickEQW(String str) {
 
 
 }
-void displayBinary(int address){//-1=ALL
-  
-  int startAddress=address;
-  int EndAddress=address+60;
-  if(address==-1){
-    startAddress=0;
-    EndAddress=16384;
-  }else{
-    if(address<-1||address>=16384)return;
+void displayBinary(int address) { //-1=ALL
+
+  int startAddress = address;
+  int EndAddress = address + 60;
+  if (address == -1) {
+    startAddress = 0;
+    EndAddress = 16384;
+  } else {
+    if (address < -1 || address >= 16384)return;
   }
-  if(EndAddress>16384)EndAddress=16384;
-  for(uint32_t stv=startAddress;stv<EndAddress;stv++){
-    char pr[3+4+5*16+4*16+4];
-    sprintf(pr,"|*a%04X",stv);
-    for(int miniAddress=0;miniAddress<16;miniAddress++){
-      uint8_t valueChar=pgm_read_byte_far(stv*16+miniAddress);
-      sprintf(pr,"%s|*%c%02X",pr,miniAddress%2?'7':'f',valueChar);
+  if (EndAddress > 16384)EndAddress = 16384;
+  for (uint32_t stv = startAddress; stv < EndAddress; stv++) {
+    char pr[3 + 4 + 5 * 16 + 4 * 16 + 4];
+    sprintf(pr, "|*a%04X", stv);
+    for (int miniAddress = 0; miniAddress < 16; miniAddress++) {
+      uint8_t valueChar = pgm_read_byte_far(stv * 16 + miniAddress);
+      sprintf(pr, "%s|*%c%02X", pr, miniAddress % 2 ? '7' : 'f', valueChar);
     }
-    sprintf(pr,"%s|*9",pr);
-    for(int miniAddress=0;miniAddress<16;miniAddress++){
-      uint8_t valueChar=pgm_read_byte_far(stv*16+miniAddress);
-      if(valueChar<0x20)valueChar='.';
-      sprintf(pr,"%s|*9%c",pr,valueChar);
+    sprintf(pr, "%s|*9", pr);
+    for (int miniAddress = 0; miniAddress < 16; miniAddress++) {
+      uint8_t valueChar = pgm_read_byte_far(stv * 16 + miniAddress);
+      if (valueChar < 0x20)valueChar = '.';
+      sprintf(pr, "%s|*9%c", pr, valueChar);
     }
     printConsole(pr);
   }
@@ -630,6 +631,7 @@ void serialEvent() {
     uint32_t value;
     int x, y, s;
     char t[2];
+    
     if (text[0] == '/') {
       switch (text[1]) {
         case 'i':
@@ -687,6 +689,10 @@ void serialEvent() {
           isDisplayedUI = -1;
           clearConsole();
           break;
+          case 'Q':
+        case 'q':
+          quickEQW(text);
+          break;
         case 'b':
         case 'B':
 
@@ -699,8 +705,8 @@ void serialEvent() {
           break;
         case 'T':
         case 't':
-          int address=0;
-          sscanf(text,"%s %x",NULL,&address);
+          int address = 0;
+          sscanf(text, "%s %x", NULL, &address);
           displayBinary(address);
           /*uint32_t test=Misaki_bmp;
             for(int y=0;y<2044;y+=8){
@@ -717,10 +723,9 @@ void serialEvent() {
           //displayUI(text[3] == '1');
 
           break;
-        case 'Q':
-        case 'q':
-          quickEQW(text);
-          break;
+        
+        default:
+          if (Time < -30000)printConsole(text);
       }
     } else if (text[0] == '!') {
       if (text[1] == 'E' && text[2] == 'Q' && text[3] == 'W' && text[4] == ' ') {
@@ -756,34 +761,34 @@ void setup()
   mylcd.Set_Text_Size(1);
   mylcd.Set_Draw_color(BLACK);
   pinMode(10, OUTPUT);
-  
+
   char text[70];
-  sprintf(text, "MisakiEQ For Arduino Ver.%d.%d.%d",version_Major, version_Minor, version_Maintenance);
-  
+  sprintf(text, "MisakiEQ For Arduino Ver.%d.%d.%d", version_Major, version_Minor, version_Maintenance);
+
   printConsole(text);
   //printConsole(" ");
-  
-  uint16_t Year=0;
-  uint8_t Month,Day;
+
+  uint16_t Year = 0;
+  uint8_t Month, Day;
   char Date[13] = __DATE__;
-  if(Date[4]=='1')Day=10;
-  Day+=Date[5]-'0';
-  for(int j=0;j<4;j++){
-    Year*=10;
-    Year+=Date[7+j]-'0';
+  if (Date[4] == '1')Day = 10;
+  Day += Date[5] - '0';
+  for (int j = 0; j < 4; j++) {
+    Year *= 10;
+    Year += Date[7 + j] - '0';
   }
-  for(Month=0;Month<12;Month++){
+  for (Month = 0; Month < 12; Month++) {
     char buffer[4];
     strcpy_P(buffer, (char*)pgm_read_word(&(month_Word[Month])));
-    if(Date[0]==buffer[0]&&Date[1]==buffer[1]&&Date[2]==buffer[2]){
+    if (Date[0] == buffer[0] && Date[1] == buffer[1] && Date[2] == buffer[2]) {
       Month++;
       break;
     }
   }
-  
 
-  sprintf(text, "Last Build Time:|*a%4d/%02d/%02d %s",Year,Month,Day, __TIME__);
-  
+
+  sprintf(text, "Last Build Time:|*a%4d/%02d/%02d %s", Year, Month, Day, __TIME__);
+
   printConsole(text);
   printConsole(" ");
   sprintf(text, "|*bTwitter|*f:@|*b0x7FF");
@@ -796,32 +801,32 @@ void setup()
   sprintf(text, "github.com/|*bMisaki0331");
   printConsole(text);
   sprintf(text, "            /|*bMisakiEQ_For_Arduino");
-  
+
   printConsole(text);
   printConsole(" ");
   sprintf(text, "(C)2021 Misaki All rights reserved");
   printConsole(text);
-  
-  
+
+
   displayBMP(207, 0, Misaki_bmp, 2095);
   pinMode(47, OUTPUT);
   printConsole(" ");
   printConsole("Initializing SD Card...");
-  if (SD.begin(10)){
-    isSDReady=1;
+  if (SD.begin(10)) {
+    isSDReady = 1;
     printRom(" SD: Ready!             ", 0, 96, 0xFFFF, 1, 0) ;
-  }else{
+  } else {
     printRom(" SD: Not Available.     ", 0, 96, 0xFFFF, 1, 0) ;
   }
-  uint32_t free_Flash=0;
-  for(uint32_t Address=0x3DFFF;;Address--){
-    if(pgm_read_byte_far(Address)==255){
+  uint32_t free_Flash = 0;
+  for (uint32_t Address = 0x3DFFF;; Address--) {
+    if (pgm_read_byte_far(Address) == 255) {
       free_Flash++;
-    }else{
+    } else {
       break;
     }
   }
-  sprintf(text,"ROM: |*a%6ld|*f Bytes (|*a%3ld|*fKB) Free",free_Flash,free_Flash/1024);
+  sprintf(text, "ROM: |*a%6ld|*f Bytes (|*a%3ld|*fKB) Free", free_Flash, free_Flash / 1024);
   printConsole(text);
   int aRamStart = 0x0100;                   // RAM先頭アドレス（固定値）
   int aGvalEnd;                             // グローバル変数領域末尾アドレス
@@ -836,13 +841,13 @@ void setup()
   aSp = (int)stackptr;                    // スタックポインタの値を記録
   aHeapEnd = (int)heapptr;                // ヒープポインタの値を記録
   aGvalEnd = (int)__malloc_heap_start - 1; // グローバル変数領域の末尾アドレスを記録
-  float usageP=(RAMEND - aRamStart)/100;
-  usageP=(RAMEND - aRamStart-(aSp - aHeapEnd + 1))/usageP;
-  int usage=usageP;
-  sprintf(text,"RAM: |*a%4d |*fBytes Free (Usage:|*a%3d|*f%%)",aSp - aHeapEnd + 1,usage);
+  float usageP = (RAMEND - aRamStart) / 100;
+  usageP = (RAMEND - aRamStart - (aSp - aHeapEnd + 1)) / usageP;
+  int usage = usageP;
+  sprintf(text, "RAM: |*a%4d |*fBytes Free (Usage:|*a%3d|*f%%)", aSp - aHeapEnd + 1, usage);
   printConsole(text);
-  for(int j=0;j<3;j++)printConsole(" ");
-  
+  for (int j = 0; j < 3; j++)printConsole(" ");
+
 }
 uint32_t TimeLoop = 0;
 uint32_t temM = 0;
