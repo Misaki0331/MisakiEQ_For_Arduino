@@ -1,6 +1,6 @@
 #define version_Major 1
 #define version_Minor 1
-#define version_Maintenance 1
+#define version_Maintenance 2
 #include "bin.h"
 #include <LCDWIKI_GUI.h> //Core graphics library
 #include <LCDWIKI_KBV.h> //Hardware-specific library
@@ -455,8 +455,8 @@ struct timeStamp {
 };
 int isDisplayedUI = 0;
 void displayUI(bool isEQW) {
-  if (isDisplayedUI != isEQW +1) {
-    isDisplayedUI = isEQW +1;
+  if (isDisplayedUI != isEQW + 1) {
+    isDisplayedUI = isEQW + 1;
     drawMap();
     if (isEQW) {
       mylcd.Set_Draw_color(0xF800);
@@ -631,7 +631,7 @@ void serialEvent() {
     uint32_t value;
     int x, y, s;
     char t[2];
-    
+
     if (text[0] == '/') {
       switch (text[1]) {
         case 'i':
@@ -689,7 +689,7 @@ void serialEvent() {
           isDisplayedUI = -1;
           clearConsole();
           break;
-          case 'Q':
+        case 'Q':
         case 'q':
           quickEQW(text);
           break;
@@ -723,7 +723,7 @@ void serialEvent() {
           //displayUI(text[3] == '1');
 
           break;
-        
+
         default:
           if (Time < -30000)printConsole(text);
       }
