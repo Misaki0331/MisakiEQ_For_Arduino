@@ -1264,6 +1264,22 @@ const uint16_t EQ_fontbin[] PROGMEM = { //漢字の12x12ビットマップフォ
   0x101F, 0xE920, 0x9409, 0x8895, 0x0924, 0x9489, 0x9092, 0x8144, 0x1843,
 
 };
+const PROGMEM char month_Word00[]="Jan";
+const PROGMEM char month_Word01[]="Feb";
+const PROGMEM char month_Word02[]="Mar";
+const PROGMEM char month_Word03[]="Apr";
+const PROGMEM char month_Word04[]="May";
+const PROGMEM char month_Word05[]="Jun";
+const PROGMEM char month_Word06[]="Jul";
+const PROGMEM char month_Word07[]="Aug";
+const PROGMEM char month_Word08[]="Sep";
+const PROGMEM char month_Word09[]="Oct";
+const PROGMEM char month_Word10[]="Nov";
+const PROGMEM char month_Word11[]="Dec";
+const char* const  month_Word[] PROGMEM  = {
+  month_Word00,month_Word01,month_Word02,month_Word03,month_Word04,month_Word05,
+  month_Word06,month_Word07,month_Word08,month_Word09,month_Word10,month_Word11
+};
 //ここから表示する文字列一覧。最後に0xFFFF付けることで読み込み過ぎによるアドレス違反を回避している。
 const PROGMEM uint16_t mem_Word0000[] = /*北海道地方*/ {0x0000, 0x0001, 0x0002, 0x0003, 0x0004, 0xFFFF};
 const PROGMEM uint16_t mem_Word0001[] = /*東北地方*/ {0x0005, 0x0000, 0x0003, 0x0004, 0xFFFF};
