@@ -1,11 +1,15 @@
 #define version_Major 1
 #define version_Minor 1
-#define version_Maintenance 2
+#define version_Maintenance 3
 #include "bin.h"
 #include <LCDWIKI_GUI.h> //Core graphics library
 #include <LCDWIKI_KBV.h> //Hardware-specific library
-#include <SD.h>
+#include <SD-master.h>
 #include <SPI.h>
+SDClass mySD;
+Sd2Card card;
+SdVolume volume;
+SdFile root;
 bool isSDReady = 0;
 //if the IC model is known or the modules is unreadable,you can use this constructed function
 LCDWIKI_KBV mylcd(ILI9486, A3, A2, A1, A0, A4); //model,cs,cd,wr,rd,reset
@@ -811,12 +815,22 @@ void setup()
   displayBMP(207, 0, Misaki_bmp, 2095);
   pinMode(47, OUTPUT);
   printConsole(" ");
-  printConsole("Initializing SD Card...");
-  if (SD.begin(10)) {
+  printRom("Initializing SD Card...", 0, 96, 0xFFFF, 1, 0) ;
+  
+  if (mySD.begin(10,11,12,13)) {
     isSDReady = 1;
-    printRom(" SD: Ready!             ", 0, 96, 0xFFFF, 1, 0) ;
+    uint32_t volumesize;
+  volumesize = mySD.volume.blocksPerCluster();    // clusters are collections of blocks
+  volumesize *= mySD.volume.clusterCount();       // we'll have a lot of clusters
+  volumesize /= 2;
+  printRom("                        ", 0, 96, 0xFFFF, 1, 0) ;
+  uint32_t s=volumesize/1024%1024*1000/1024;
+     sprintf(text," SD: |*a%ld.%03ld|*f MB in Volume",volumesize/1024,s);
+    printConsole(text);
+    
   } else {
-    printRom(" SD: Not Available.     ", 0, 96, 0xFFFF, 1, 0) ;
+    printRom("                        ", 0, 96, 0xFFFF, 1, 0) ;
+    printConsole(" SD:|*9Error |*f- Not Available");
   }
   uint32_t free_Flash = 0;
   for (uint32_t Address = 0x3DFFF;; Address--) {
@@ -841,10 +855,10 @@ void setup()
   aSp = (int)stackptr;                    // スタックポインタの値を記録
   aHeapEnd = (int)heapptr;                // ヒープポインタの値を記録
   aGvalEnd = (int)__malloc_heap_start - 1; // グローバル変数領域の末尾アドレスを記録
-  float usageP = (RAMEND - aRamStart) / 100;
-  usageP = (RAMEND - aRamStart - (aSp - aHeapEnd + 1)) / usageP;
-  int usage = usageP;
-  sprintf(text, "RAM: |*a%4d |*fBytes Free (Usage:|*a%3d|*f%%)", aSp - aHeapEnd + 1, usage);
+  uint32_t usageP = (RAMEND - aRamStart);
+  usageP = (usageP - (aSp - aHeapEnd + 1))*10000/ usageP;
+
+  sprintf(text, "RAM: |*a%4d |*fBytes Free (Usage:|*a%3ld.%02ld|*f%%)", aSp - aHeapEnd + 1, usageP/100,usageP%100);
   printConsole(text);
   for (int j = 0; j < 3; j++)printConsole(" ");
 
