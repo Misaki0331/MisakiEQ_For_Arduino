@@ -1,6 +1,6 @@
 #define version_Major 1
 #define version_Minor 1
-#define version_Maintenance 3
+#define version_Maintenance 4
 #include "bin.h"
 #include <LCDWIKI_GUI.h> //Core graphics library
 #include <LCDWIKI_KBV.h> //Hardware-specific library
@@ -15,6 +15,7 @@ bool isSDReady = 0;
 LCDWIKI_KBV mylcd(ILI9486, A3, A2, A1, A0, A4); //model,cs,cd,wr,rd,reset
 //if the IC model is not known and the modules is readable,you can use this constructed function
 //LCDWIKI_KBV mylcd(320,480,A3,A2,A1,A0,A4);//width,height,cs,cd,wr,rd,reset
+
 void displayBMP(int x, int y, uint32_t address, uint16_t size) {
   int sizeX = pgm_read_word(address + 0);
   int sizeY = pgm_read_word(address + 2);
@@ -198,7 +199,59 @@ void displayJapaneseWord(int x, int y, uint16_t wordType, uint16_t color, uint8_
     displayJapanese(x + (14 * p)*siz, y, pgm_read_word(((pgm_read_word(&mem_WordSet[wordType]))) + p * 2), color, siz, bgcol);
   }
 }
-
+void screenshot(){
+  if(isSDReady){
+    if(!mySD.exists("/SS"))mySD.mkdir("/SS");
+    int sid=0;
+    char path[16];
+    for(;sid<10000;sid++){
+    sprintf(path,"/SS/%04d.bmp",sid);
+    if(!mySD.exists(path))break;;
+    }
+    File image = mySD.open(path, FILE_WRITE);
+    uint16_t *bmp;
+    bmp=new uint16_t[9*25];
+    for(int j=0;j<0x36;j++)image.write(pgm_read_byte(bmp_format+j));
+    for(int y=479;y>=0;y--){
+      for(int x=0;x<320;x++){
+        uint16_t col = mylcd.Read_Pixel(x,y);
+        uint8_t r=0,g=0,b=0;
+        r=(col/32/64)*8-(col/32/64>0?1:0);
+        g=(col/32%64)*4-(col/32%64>0?1:0);
+        b=(col%32)*8-(col%32>0?1:0);
+        
+        image.write(b);
+        image.write(g);
+        image.write(r);
+        uint32_t pos=(479-y)*320+x;
+        if(pos%1536==0&&pos/1536>=4){
+          
+            if(pos/1536==4){
+              for(int l=0;l<225;l++){
+                bmp[l]=mylcd.Read_Pixel(l%25,471+l/25);
+              }
+            }
+            mylcd.Set_Draw_color(0);
+            mylcd.Fill_Rectangle(0,471,24,479);
+            mylcd.Set_Draw_color(15*32);
+            mylcd.Fill_Rectangle(0,471,pos/1536/4-1,479);
+            char progressWord[6];
+            sprintf(progressWord,"%3ld%%",pos/1536);
+            printRom(progressWord,0,472,0xFFFF,1,-1);
+            
+          
+        }
+      }
+    }
+    image.close();
+    for(int l=0;l<225;l++){
+    mylcd.Set_Draw_color(bmp[l]);
+    mylcd.Draw_Pixel(l%25,471+l/25);
+    }
+    delete[] bmp;
+    
+  }
+}
 void shindo(int x, int y, int siz) {
   if (!(siz > 0 && siz < 10))return;
   mylcd.Set_Draw_color(pgm_read_word(JPN_shindo_color + 6 * siz + 4));
@@ -674,8 +727,7 @@ void serialEvent() {
           break;
         case 's':
         case 'S':
-          i = 480;
-          drawMap();
+          screenshot();
           break;
         case 'd':
         case 'D':
