@@ -6,6 +6,22 @@
 #include <LCDWIKI_KBV.h> //Hardware-specific library
 #include <SD-master.h>
 #include <SPI.h>
+#include<SdFat.h>
+/*// Chip select may be constant or RAM variable.
+const uint8_t SD_CS_PIN = 10;
+//
+// Pin numbers in templates must be constants.
+const uint8_t SOFT_MISO_PIN = 12;
+const uint8_t SOFT_MOSI_PIN = 11;
+const uint8_t SOFT_SCK_PIN  = 13;
+// SdFat software SPI template
+SoftSpiDriver<SOFT_MISO_PIN, SOFT_MOSI_PIN, SOFT_SCK_PIN> softSpi;
+// Speed argument is ignored for software SPI.
+#define SD_CONFIG SdSpiConfig(SD_CS_PIN, DEDICATED_SPI, SD_SCK_MHZ(0), &softSpi)
+
+SdFat32 sd_;
+File32 file_;
+*/
 SDClass mySD;
 Sd2Card card;
 SdVolume volume;
@@ -15,7 +31,21 @@ bool isSDReady = 0;
 LCDWIKI_KBV mylcd(ILI9486, A3, A2, A1, A0, A4); //model,cs,cd,wr,rd,reset
 //if the IC model is not known and the modules is readable,you can use this constructed function
 //LCDWIKI_KBV mylcd(320,480,A3,A2,A1,A0,A4);//width,height,cs,cd,wr,rd,reset
+uint8_t freeSpace() {
+  uint32_t freeCount = 0;
 
+  // search the FAT for free clusters
+  for (uint32_t cluster = 2;  cluster < mySD.volume.clusterCount(); cluster++) {
+    uint32_t f;
+    if (!mySD.volume.fatGet(mySD.volume.clusterCount(), &f))
+      return 0;
+
+    if (f == 0)
+      freeCount++;
+  }
+
+  return freeCount;
+}
 void displayBMP(int x, int y, uint32_t address, uint16_t size) {
   int sizeX = pgm_read_word(address + 0);
   int sizeY = pgm_read_word(address + 2);
@@ -199,57 +229,59 @@ void displayJapaneseWord(int x, int y, uint16_t wordType, uint16_t color, uint8_
     displayJapanese(x + (14 * p)*siz, y, pgm_read_word(((pgm_read_word(&mem_WordSet[wordType]))) + p * 2), color, siz, bgcol);
   }
 }
-void screenshot(){
-  if(isSDReady){
-    if(!mySD.exists("/SS"))mySD.mkdir("/SS");
-    int sid=0;
+void screenshot() {
+  if (isSDReady) {
+    if (!mySD.exists("/SS"))mySD.mkdir("/SS");
+    int sid = 0;
     char path[16];
-    for(;sid<10000;sid++){
-    sprintf(path,"/SS/%04d.bmp",sid);
-    if(!mySD.exists(path))break;;
+    for (; sid < 10000; sid++) {
+      sprintf(path, "/SS/%04d.bmp", sid);
+      if (!mySD.exists(path))break;;
     }
     File image = mySD.open(path, FILE_WRITE);
     uint16_t *bmp;
-    bmp=new uint16_t[9*25];
-    for(int j=0;j<0x36;j++)image.write(pgm_read_byte(bmp_format+j));
-    for(int y=479;y>=0;y--){
-      for(int x=0;x<320;x++){
-        uint16_t col = mylcd.Read_Pixel(x,y);
-        uint8_t r=0,g=0,b=0;
-        r=(col/32/64)*8-(col/32/64>0?1:0);
-        g=(col/32%64)*4-(col/32%64>0?1:0);
-        b=(col%32)*8-(col%32>0?1:0);
-        
+    bmp = new uint16_t[9 * 25];
+    for (int j = 0; j < 0x36; j++)image.write(pgm_read_byte(bmp_format + j));
+    for (int y = 479; y >= 0; y--) {
+      for (int x = 0; x < 320; x++) {
+        uint16_t col = mylcd.Read_Pixel(x, y);
+        uint8_t r = 0, g = 0, b = 0;
+        r = (col / 32 / 64) * 8 - (col / 32 / 64 > 0 ? 1 : 0);
+        g = (col / 32 % 64) * 4 - (col / 32 % 64 > 0 ? 1 : 0);
+        b = (col % 32) * 8 - (col % 32 > 0 ? 1 : 0);
+
         image.write(b);
         image.write(g);
         image.write(r);
-        uint32_t pos=(479-y)*320+x;
-        if(pos%1536==0&&pos/1536>=4){
+        uint32_t pos = (479 - y) * 320 + x;
+        uint32_t hi=pos%1536;
+        uint32_t percent=pos/1536;
+        if (hi == 0 && percent >= 2) {
           
-            if(pos/1536==4){
-              for(int l=0;l<225;l++){
-                bmp[l]=mylcd.Read_Pixel(l%25,471+l/25);
-              }
+          if (percent == 2) {
+            for (int l = 0; l < 225; l++) {
+              bmp[l] = mylcd.Read_Pixel(l % 25, 471 + l / 25);
             }
-            mylcd.Set_Draw_color(0);
-            mylcd.Fill_Rectangle(0,471,24,479);
-            mylcd.Set_Draw_color(15*32);
-            mylcd.Fill_Rectangle(0,471,pos/1536/4-1,479);
-            char progressWord[6];
-            sprintf(progressWord,"%3ld%%",pos/1536);
-            printRom(progressWord,0,472,0xFFFF,1,-1);
-            
-          
+          }
+          mylcd.Set_Draw_color(0);
+          mylcd.Fill_Rectangle(0, 471, 24, 479);
+          mylcd.Set_Draw_color(15 * 32);
+          mylcd.Fill_Rectangle(0, 471, percent / 4 - 1, 479);
+          char progressWord[6];
+          sprintf(progressWord, "%3ld%%", percent);
+          printRom(progressWord, 0, 472, 0xFFFF, 1, -1);
+
+
         }
       }
     }
     image.close();
-    for(int l=0;l<225;l++){
-    mylcd.Set_Draw_color(bmp[l]);
-    mylcd.Draw_Pixel(l%25,471+l/25);
+    for (int l = 0; l < 225; l++) {
+      mylcd.Set_Draw_color(bmp[l]);
+      mylcd.Draw_Pixel(l % 25, 471 + l / 25);
     }
     delete[] bmp;
-    
+
   }
 }
 void shindo(int x, int y, int siz) {
@@ -804,6 +836,14 @@ void serialEvent() {
   }
 
 }
+uint32_t powi(int x,int y){
+  if(y==0)return 1;
+  if(y==1)return x;
+  if(y>=32)return 0;
+  uint32_t val=x;
+  for(int j=1;j<y;j++)val*=x;
+  return val;
+}
 void setup()
 {
 
@@ -868,18 +908,56 @@ void setup()
   pinMode(47, OUTPUT);
   printConsole(" ");
   printRom("Initializing SD Card...", 0, 96, 0xFFFF, 1, 0) ;
-  
-  if (mySD.begin(10,11,12,13)) {
+
+  if (mySD.begin(10, 11, 12, 13)) {
     isSDReady = 1;
-    uint32_t volumesize;
-  volumesize = mySD.volume.blocksPerCluster();    // clusters are collections of blocks
-  volumesize *= mySD.volume.clusterCount();       // we'll have a lot of clusters
-  volumesize /= 2;
-  printRom("                        ", 0, 96, 0xFFFF, 1, 0) ;
-  uint32_t s=volumesize/1024%1024*1000/1024;
-     sprintf(text," SD: |*a%ld.%03ld|*f MB in Volume",volumesize/1024,s);
-    printConsole(text);
     
+    uint32_t volumesize;
+    volumesize = mySD.volume.blocksPerCluster();    // clusters are collections of blocks
+    volumesize *= mySD.volume.clusterCount();       // we'll have a lot of clusters
+    volumesize /= 2;
+    uint32_t freeCount = 0;
+    //mySD.end();
+    //sd.begin(SD_CONFIG);
+    uint32_t milliTimer = millis();
+    sprintf(text, " SD: CHECKING...      MB/%5ldMB",volumesize/1024);
+    printRom(text, 0, 96, 0xFFFF, 1, 0) ;
+    uint16_t perMB=8*2048/mySD.volume.blocksPerCluster();
+    uint8_t va[5];
+    
+    for(int j=0;j<5;j++)va[j]=0;
+    va[0]=255;
+    if(perMB<2)perMB==2;
+    for (uint32_t cluster = 2;  cluster < mySD.volume.clusterCount(); cluster++) {
+      uint32_t fa=0xFFFFFFFF;
+      if (!mySD.volume.fatGet(mySD.volume.clusterCount(), &fa))return 0;
+      if (fa == 0)freeCount++;
+      if((cluster-2)%(perMB)==0){
+        if(milliTimer+33<millis()){
+          milliTimer=millis();
+          uint16_t siz=(cluster-2)* mySD.volume.blocksPerCluster() / 2/1024;
+          for(int j=0;j<5;j++){
+            if(siz/powi(10,j)%10!=va[j]){
+              va[j]=siz/powi(10,j)%10;
+              sprintf(text,"%c",'0'+va[j]);
+              printRom(text,6*(21-j),96,0x57EA,1,0);
+            }
+          }
+          //printRom(text, 6*17, 96, 0xFFFF, 1, 0) ;
+        }
+      }
+    }
+
+    uint32_t FreeK = freeCount * mySD.volume.blocksPerCluster() /2/1024 ;
+    uint32_t FreeF = freeCount * mySD.volume.blocksPerCluster()%2048*1000/2048/10;
+    printRom("                                    ", 0, 96, 0xFFFF, 1, 0) ;
+    uint32_t s = volumesize / 1024 % 1024 * 1000 / 1024;
+    double pd=(mySD.volume.clusterCount()-freeCount)*100000/mySD.volume.clusterCount();
+    uint32_t per=(uint32_t)pd/100;
+    uint32_t per2=(uint32_t)pd%100;
+    sprintf(text, " SD: |*a%5ld.%02ld|*f MB/ %5ld.%02ld MB [|*a%2ld.%02ld|*f%%]", FreeK,FreeF,volumesize/1024,volumesize%1024*1000/1024/10,per,per2);
+    printConsole(text);
+
   } else {
     printRom("                        ", 0, 96, 0xFFFF, 1, 0) ;
     printConsole(" SD:|*9Error |*f- Not Available");
@@ -908,9 +986,9 @@ void setup()
   aHeapEnd = (int)heapptr;                // ヒープポインタの値を記録
   aGvalEnd = (int)__malloc_heap_start - 1; // グローバル変数領域の末尾アドレスを記録
   uint32_t usageP = (RAMEND - aRamStart);
-  usageP = (usageP - (aSp - aHeapEnd + 1))*10000/ usageP;
+  usageP = (usageP - (aSp - aHeapEnd + 1)) * 10000 / usageP;
 
-  sprintf(text, "RAM: |*a%4d |*fBytes Free (Usage:|*a%3ld.%02ld|*f%%)", aSp - aHeapEnd + 1, usageP/100,usageP%100);
+  sprintf(text, "RAM: |*a%4d |*fBytes Free (Usage:|*a%3ld.%02ld|*f%%)", aSp - aHeapEnd + 1, usageP / 100, usageP % 100);
   printConsole(text);
   for (int j = 0; j < 3; j++)printConsole(" ");
 
